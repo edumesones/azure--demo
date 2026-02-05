@@ -8,6 +8,28 @@ version: "3.9"
 
 services:
   # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: datacatalog-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=datacatalog
+      - POSTGRES_PASSWORD=datacatalog_dev
+      - POSTGRES_DB=datacatalog
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datacatalog -d datacatalog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - datacatalog-network
+
+  # ---------------------------------------------------------------------------
   # API Service
   # ---------------------------------------------------------------------------
   api:
@@ -23,9 +45,13 @@ services:
       - LOG_FORMAT=console
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-super-secret-key-minimum-32-chars-long-change-in-prod}
       - CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+      - DATABASE_URL=postgresql+asyncpg://datacatalog:datacatalog_dev@postgres:5432/datacatalog
     volumes:
       # Mount source for hot-reload in development
       - ../src:/app/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -81,5 +107,6 @@ networks:
 # Volumes
 # -----------------------------------------------------------------------------
 volumes:
+  postgres-data:
   chromadb-data:
   redis-data:

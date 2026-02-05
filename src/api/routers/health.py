@@ -2,13 +2,17 @@
 
 from datetime import datetime, timezone
 
+import structlog
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
+from sqlalchemy import text
 
 from src.core.config import settings
+from src.db.session import async_session_maker
 from src.models.schemas import HealthCheck, HealthStatus, ReadinessCheck
 
 router = APIRouter(tags=["health"])
+logger = structlog.get_logger(__name__)
 
 
 @router.get("/health", response_model=HealthCheck)
@@ -25,6 +29,17 @@ async def health_check() -> HealthCheck:
     )
 
 
+async def check_database() -> bool:
+    """Check database connectivity."""
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error("database_health_check_failed", error=str(e))
+        return False
+
+
 @router.get("/ready", response_model=ReadinessCheck)
 async def readiness_check() -> ReadinessCheck:
     """
@@ -33,10 +48,13 @@ async def readiness_check() -> ReadinessCheck:
     Returns detailed readiness status including dependency checks.
     Used by Kubernetes/orchestrators to determine if service can accept traffic.
     """
+    # Check database connectivity
+    db_healthy = await check_database()
+
     checks = {
         "config_loaded": True,
+        "database": db_healthy,
         # Future checks will be added here:
-        # "database": check_database_connection(),
         # "vector_store": check_vector_store_connection(),
         # "cache": check_redis_connection(),
     }

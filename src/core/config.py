@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
+    # Database
+    database_url: str = "sqlite+aiosqlite:///./data/app.db"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 30
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"

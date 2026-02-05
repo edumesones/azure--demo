@@ -1,9 +1,11 @@
 """FastAPI dependencies for dependency injection."""
 
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import (
     InvalidTokenError,
@@ -13,32 +15,41 @@ from src.core.exceptions import (
     token_expired_exception,
 )
 from src.core.security import security_service
+from src.db.repositories.user import UserRepository
+from src.db.session import async_session_maker
 from src.models.schemas import User, UserInDB, UserRole
 
 # OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
-# In-memory user store (shared with auth router - will be replaced with DB)
-# This is duplicated here for MVP; will be refactored in FEAT-002 with proper DB
-FAKE_USERS_DB: dict[str, UserInDB] = {}
 
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency that provides a database session.
 
-def _init_fake_db() -> None:
-    """Initialize fake database - called from auth router."""
-    from src.api.routers.auth import FAKE_USERS_DB as AUTH_USERS_DB
-
-    global FAKE_USERS_DB
-    FAKE_USERS_DB = AUTH_USERS_DB
+    Yields:
+        AsyncSession: Database session that auto-commits on success
+        and rolls back on exception.
+    """
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """
     Dependency to get current authenticated user from JWT token.
 
     Args:
         token: JWT access token from Authorization header
+        db: Database session
 
     Returns:
         User: Current authenticated user
@@ -57,29 +68,28 @@ async def get_current_user(
     if user_email is None:
         raise credentials_exception()
 
-    # Initialize fake DB if needed
-    if not FAKE_USERS_DB:
-        _init_fake_db()
+    # Get user from database
+    user_repo = UserRepository(db)
+    db_user = await user_repo.get_by_email(user_email)
 
-    user = FAKE_USERS_DB.get(user_email)
-    if user is None:
+    if db_user is None:
         raise credentials_exception()
 
-    if not user.is_active:
+    if not db_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled",
         )
 
-    # Return User without hashed_password
+    # Return User schema
     return User(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        role=user.role,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
+        id=str(db_user.id),
+        email=db_user.email,
+        full_name=None,  # Not in DB model yet
+        is_active=db_user.is_active,
+        role=UserRole(db_user.role),
+        created_at=db_user.created_at,
+        updated_at=db_user.updated_at,
     )
 
 

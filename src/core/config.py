@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
 
+    # OpenAI
+    openai_api_key: str | None = None
+    embedding_model: str = "text-embedding-3-small"
+
+    # ChromaDB
+    chroma_persist_dir: str = "./chroma_data"
+    chroma_collection_name: str = "catalog"
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"

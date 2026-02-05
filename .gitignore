@@ -45,3 +45,7 @@ htmlcov/
 
 # Logs
 *.log
+
+# Data directories
+data/
+chroma_data/

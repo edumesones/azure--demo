@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
-from src.api.routers import auth, health
+from src.api.routers import auth, health, search
 from src.core.config import settings
 
 
@@ -70,6 +70,7 @@ def create_application() -> FastAPI:
     # Include routers
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(search.router, prefix="/api/v1")
 
     @app.on_event("startup")
     async def startup_event() -> None:

@@ -1,94 +1,38 @@
 # DataCatalog AI
 
-Intelligent data catalog with RAG-powered natural language querying.
+Intelligent data catalog with **RAG-powered natural-language querying**, built as a
+**production-shaped FastAPI service**: JWT auth, async SQL persistence, database
+migrations, structured logging and Prometheus metrics out of the box.
 
-## Quick Start
+## What it demonstrates (production API patterns)
 
-### Prerequisites
+- **Async FastAPI** with SQLAlchemy 2.0 (async) + asyncpg/aiosqlite and **Alembic
+  migrations** — not a toy script, a service with a real data layer.
+- **Auth**: OAuth2 password flow with JWT access/refresh tokens
+  (`python-jose`, `passlib`/bcrypt).
+- **Observability**: `structlog` structured logging + **Prometheus** `/metrics`,
+  plus `/health` and `/ready` probes for orchestration.
+- **RAG over the catalog**: query datasets/metadata in natural language.
+- Built with a **spec-driven methodology** — the `.claude/` folder ships the skills and
+  commands (spec-architect, architecture-designer, implementation-planner, …) used to
+  design and implement it with traceability from spec to code.
 
-- Python 3.11+
-- Docker & Docker Compose (optional)
-
-### Local Development
-
-1. **Clone and install dependencies:**
-
-```bash
-# Using uv (recommended)
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+## API surface
+```
+GET  /api/v1/health | /ready | /metrics       health & Prometheus
+POST /api/v1/auth/token | /auth/refresh        OAuth2 login / refresh
+GET  /api/v1/auth/me                           current user
+GET  /api/docs                                 OpenAPI docs
 ```
 
-2. **Configure environment:**
+## Tech stack
+Python 3.11 · FastAPI · Pydantic v2 · SQLAlchemy (async) · asyncpg / aiosqlite ·
+Alembic · python-jose + passlib · structlog · prometheus-client · Docker Compose
 
+## Quick start
 ```bash
+uv venv && source .venv/bin/activate && uv pip install -e ".[dev]"
 cp .env.example .env
-# Edit .env with your settings
+uvicorn src.api.main:app --reload      # http://localhost:8000/api/docs
+# or: cd docker && docker-compose up -d
 ```
-
-3. **Run the server:**
-
-```bash
-uvicorn src.api.main:app --reload
-```
-
-4. **Access the API:**
-   - API Docs: http://localhost:8000/api/docs
-   - Health Check: http://localhost:8000/api/v1/health
-
-### Using Docker
-
-```bash
-cd docker
-docker-compose up -d
-```
-
-## API Endpoints
-
-### Health
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/ready` - Readiness check
-- `GET /api/v1/metrics` - Prometheus metrics
-
-### Authentication
-- `POST /api/v1/auth/token` - Login (OAuth2 password flow)
-- `POST /api/v1/auth/refresh` - Refresh access token
-- `GET /api/v1/auth/me` - Get current user
-
-## Default Users (Development)
-
-| Email | Password | Role |
-|-------|----------|------|
-| admin@datacatalog.ai | admin123secure | admin |
-| editor@datacatalog.ai | editor123secure | editor |
-| viewer@datacatalog.ai | viewer123secure | viewer |
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
-
-## Project Structure
-
-```
-src/
-├── api/
-│   ├── main.py          # FastAPI application factory
-│   ├── dependencies.py  # Dependency injection
-│   ├── middleware.py    # Request logging, security headers
-│   └── routers/
-│       ├── auth.py      # Authentication endpoints
-│       └── health.py    # Health check endpoints
-├── core/
-│   ├── config.py        # Pydantic settings
-│   ├── security.py      # JWT & password utilities
-│   └── exceptions.py    # Custom exceptions
-└── models/
-    └── schemas.py       # Pydantic schemas
-```
-
-## License
-
-MIT
